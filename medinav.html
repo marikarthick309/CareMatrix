@@ -1,0 +1,292 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="description" content="City General Hospital â€” Interactive indoor navigation map with A* pathfinding. Find rooms, lifts, stairs, and services across all floors.">
+  <meta name="theme-color" content="#1d4ed8">
+  <title>MediNav | Hospital Indoor Navigation â€” City General Hospital</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="medinav.css">
+</head>
+<body>
+  <div class="app-shell" id="app-shell">
+
+    <!-- ======================================================
+         HEADER BAR
+         ====================================================== -->
+    <header class="app-header" role="banner">
+      <!-- Brand -->
+      <div class="header-brand">
+        <div class="brand-logo" aria-hidden="true">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M12 2L2 7L12 12L22 7L12 2Z" stroke="white" stroke-width="2" stroke-linejoin="round"/>
+            <path d="M2 17L12 22L22 17" stroke="white" stroke-width="2" stroke-linejoin="round"/>
+            <path d="M2 12L12 17L22 12" stroke="white" stroke-width="2" stroke-linejoin="round"/>
+          </svg>
+        </div>
+        <div class="brand-text">
+          <span class="brand-name">MediNav</span>
+          <span class="brand-sub">City General Hospital</span>
+        </div>
+      </div>
+
+      <!-- Floor Tabs (centre) -->
+      <nav class="floor-nav" aria-label="Floor selection">
+        <button class="floor-tab active" data-floor="0" id="btn-floor-0" aria-pressed="true">
+          <svg class="floor-icon" width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z" stroke="currentColor" stroke-width="2"/></svg>
+          Ground Floor
+          <span class="floor-chip">GF</span>
+        </button>
+        <button class="floor-tab" data-floor="1" id="btn-floor-1" aria-pressed="false">
+          <svg class="floor-icon" width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M12 2v20M2 12h20" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+          First Floor
+          <span class="floor-chip">1F</span>
+        </button>
+      </nav>
+
+      <!-- Header Actions -->
+      <div class="header-actions">
+        <button class="hdr-btn" id="btn-simulate-walk" title="Simulate patient walking along route">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><polygon points="5,3 19,12 5,21" fill="currentColor"/></svg>
+          Simulate
+        </button>
+        <button class="hdr-btn hdr-btn-ghost" id="btn-wifi-mock" title="Inject Wi-Fi position">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M5 12.55a11 11 0 0114.08 0M1.42 9a16 16 0 0121.16 0M8.53 16.11a6 6 0 016.95 0M12 20h.01" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          Wi-Fi Input
+        </button>
+        <button class="hdr-btn" id="btn-validate-nav" title="Run full graph diagnostic â€” tests every sourceâ†’destination pair" style="background:#eff6ff;border-color:#bfdbfe;color:#1d4ed8">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M9 12l2 2 4-4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"/></svg>
+          âœ“ Validate
+        </button>
+      </div>
+    </header>
+
+    <!-- ======================================================
+         MAIN LAYOUT: SIDEBAR + MAP
+         ====================================================== -->
+    <div class="app-body">
+
+      <!-- LEFT SIDEBAR: Navigation Controls -->
+      <aside class="nav-sidebar" id="nav-sidebar" aria-label="Navigation controls" style="position:relative">
+
+        <!-- From / To Inputs -->
+        <div class="sidebar-section">
+          <p class="sidebar-label">Route Planner</p>
+
+          <div class="location-row">
+            <div class="loc-indicator loc-start" aria-hidden="true"></div>
+            <div class="loc-field">
+              <label class="loc-field-label" for="start-location-select">From</label>
+              <select id="start-location-select" class="loc-select" aria-label="Select starting location">
+                <!-- Populated by JS -->
+              </select>
+            </div>
+          </div>
+
+          <div class="route-connector" aria-hidden="true">
+            <div class="connector-line"></div>
+          </div>
+
+          <div class="location-row">
+            <div class="loc-indicator loc-dest" aria-hidden="true"></div>
+            <div class="loc-field">
+              <label class="loc-field-label" for="destination-search-input">To</label>
+              <div class="search-wrapper">
+                <input
+                  type="text"
+                  id="destination-search-input"
+                  class="loc-input"
+                  placeholder="Search destinationâ€¦"
+                  autocomplete="off"
+                  spellcheck="false"
+                  aria-label="Search for a destination"
+                  aria-autocomplete="list"
+                  aria-controls="search-results-dropdown"
+                  aria-expanded="false"
+                >
+                <button id="clear-search-btn" class="clear-btn" aria-label="Clear destination" title="Clear">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none"><line x1="18" y1="6" x2="6" y2="18" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/><line x1="6" y1="6" x2="18" y2="18" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/></svg>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Autocomplete Dropdown -->
+          <div id="search-results-dropdown" class="search-dropdown" role="listbox" aria-label="Search results"></div>
+        </div>
+
+        <!-- Quick Destinations -->
+        <div class="sidebar-section">
+          <p class="sidebar-label">Quick Access</p>
+          <div class="quick-pills">
+            <button class="quick-pill" data-dest-id="dest-reception" id="qp-reception">Reception</button>
+            <button class="quick-pill" data-dest-id="dest-emergency" id="qp-emergency">Emergency</button>
+            <button class="quick-pill" data-dest-id="dest-pharmacy" id="qp-pharmacy">Pharmacy</button>
+            <button class="quick-pill" data-dest-id="dest-radiology" id="qp-radiology">Radiology</button>
+            <button class="quick-pill" data-dest-id="dest-pathology" id="qp-pathology">Path Lab</button>
+            <button class="quick-pill" data-dest-id="dest-cafeteria" id="qp-cafeteria">Cafeteria</button>
+            <button class="quick-pill" data-dest-id="dest-icu" id="qp-icu">ICU (1F)</button>
+            <button class="quick-pill" data-dest-id="dest-ot" id="qp-ot">OT Suite (1F)</button>
+            <button class="quick-pill" data-dest-id="dest-cardiology" id="qp-cardiology">Cardiology (1F)</button>
+            <button class="quick-pill" data-dest-id="dest-201" id="qp-201">Room 201 (1F)</button>
+          </div>
+        </div>
+
+        <!-- Route Info Panel (shown after route is calculated) -->
+        <div class="route-info-panel" id="route-info-panel" aria-live="polite" style="display:none">
+          <div class="route-info-header">
+            <div class="route-info-title" id="route-info-title">Route</div>
+            <button class="route-reset-btn" id="btn-reset-route" title="Clear route" aria-label="Reset route">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M3 12a9 9 0 109-9 9.75 9.75 0 00-6.74 2.74L3 8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><polyline points="3 3 3 8 8 8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              Reset
+            </button>
+          </div>
+
+          <div class="route-stats">
+            <div class="route-stat">
+              <span class="stat-icon">ðŸ“</span>
+              <div>
+                <div class="stat-value" id="stat-distance">â€”</div>
+                <div class="stat-label">Distance</div>
+              </div>
+            </div>
+            <div class="route-stat">
+              <span class="stat-icon">â±</span>
+              <div>
+                <div class="stat-value" id="stat-time">â€”</div>
+                <div class="stat-label">Walk Time</div>
+              </div>
+            </div>
+            <div class="route-stat" id="stat-floors-container" style="display:none">
+              <span class="stat-icon">ðŸ›—</span>
+              <div>
+                <div class="stat-value" id="stat-floors">â€”</div>
+                <div class="stat-label">Floor Change</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Floor transition banner -->
+          <div id="floor-change-banner" class="floor-change-banner" style="display:none">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M12 2v20M17 7l-5-5-5 5M17 17l-5 5-5-5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            <span id="floor-change-text"></span>
+          </div>
+
+          <!-- Route Steps list -->
+          <div id="route-steps" class="route-steps"></div>
+        </div>
+
+        <!-- Error Banner -->
+        <div id="error-banner" class="error-banner" role="alert" style="display:none">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"/><line x1="12" y1="8" x2="12" y2="12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line x1="12" y1="16" x2="12.01" y2="16" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+          <span id="error-text"></span>
+        </div>
+
+        <!-- Map Legend -->
+        <div class="sidebar-section legend-section">
+          <p class="sidebar-label">Legend</p>
+          <div class="legend-grid">
+            <div class="legend-item"><span class="legend-dot" style="background:#e0f2fe;border-color:#7dd3fc"></span>Diagnostic</div>
+            <div class="legend-item"><span class="legend-dot" style="background:#f0fdf4;border-color:#86efac"></span>Pharmacy</div>
+            <div class="legend-item"><span class="legend-dot" style="background:#fff1f2;border-color:#fda4af"></span>Emergency</div>
+            <div class="legend-item"><span class="legend-dot" style="background:#fffbeb;border-color:#fcd34d"></span>Critical/OT</div>
+            <div class="legend-item"><span class="legend-dot" style="background:#f8fafc;border-color:#94a3b8"></span>Outpatient</div>
+            <div class="legend-item"><span class="legend-dot" style="background:#f8fafc;border-color:#cbd5e1"></span>Inpatient</div>
+            <div class="legend-item"><span class="legend-swatch lift-swatch"></span>Lift</div>
+            <div class="legend-item"><span class="legend-swatch stair-swatch"></span>Stair</div>
+          </div>
+        </div>
+
+      </aside>
+
+      <!-- MAP STAGE -->
+      <main class="map-stage" id="map-stage" role="main" aria-label="Hospital floor map">
+
+        <!-- SVG Map Container -->
+        <div id="map-viewport" class="map-viewport"></div>
+
+        <!-- Floating Zoom Controls -->
+        <div class="map-controls" role="group" aria-label="Map controls">
+          <button id="btn-zoom-in" class="map-ctrl" title="Zoom in" aria-label="Zoom in">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><line x1="12" y1="5" x2="12" y2="19" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/><line x1="5" y1="12" x2="19" y2="12" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/></svg>
+          </button>
+          <button id="btn-zoom-out" class="map-ctrl" title="Zoom out" aria-label="Zoom out">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><line x1="5" y1="12" x2="19" y2="12" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/></svg>
+          </button>
+          <div class="map-ctrl-divider"></div>
+          <button id="btn-fit-route" class="map-ctrl" title="Fit route to screen" aria-label="Fit to screen">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
+          <button id="btn-reset-view" class="map-ctrl" title="Reset view" aria-label="Reset map view">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M3 12a9 9 0 109-9 9.75 9.75 0 00-6.74 2.74L3 8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><polyline points="3 3 3 8 8 8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
+        </div>
+
+        <!-- Floor indicator watermark -->
+        <div class="floor-watermark" id="floor-watermark" aria-hidden="true">
+          <span id="floor-watermark-text">Ground Floor</span>
+        </div>
+
+      </main>
+    </div>
+
+    <!-- ======================================================
+         WI-FI POSITIONING MODAL (Future Integration)
+         ====================================================== -->
+    <div id="wifi-modal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="wifi-modal-title" style="display:none">
+      <div class="modal-card">
+        <div class="modal-hdr">
+          <div>
+            <h2 class="modal-title" id="wifi-modal-title">Wi-Fi Live Positioning</h2>
+            <p class="modal-sub">Inject a coordinate update for testing</p>
+          </div>
+          <button id="btn-close-wifi-modal" class="modal-close" aria-label="Close modal">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><line x1="18" y1="6" x2="6" y2="18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line x1="6" y1="6" x2="18" y2="18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+          </button>
+        </div>
+
+        <div class="modal-notice">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="#0284c7" stroke-width="2"/><line x1="12" y1="8" x2="12" y2="12" stroke="#0284c7" stroke-width="2" stroke-linecap="round"/><line x1="12" y1="16" x2="12.01" y2="16" stroke="#0284c7" stroke-width="2" stroke-linecap="round"/></svg>
+          Architecture ready â€” no real Wi-Fi hardware connected. Use the form below to simulate a position update.
+        </div>
+
+        <div class="wifi-code-preview">
+          <span class="code-comment">// Expected positioning payload format</span><br>
+          { floor: <span class="code-val">1</span>, x: <span class="code-val">95.0</span>, y: <span class="code-val">250.0</span> }
+        </div>
+
+        <div class="wifi-form">
+          <div class="wifi-field-group">
+            <label class="wifi-label" for="wifi-input-floor">Floor</label>
+            <select id="wifi-input-floor" class="wifi-input">
+              <option value="0">0 â€” Ground Floor</option>
+              <option value="1" selected>1 â€” First Floor</option>
+            </select>
+          </div>
+          <div class="wifi-field-group">
+            <label class="wifi-label" for="wifi-input-x">X Coordinate</label>
+            <input type="number" id="wifi-input-x" class="wifi-input" value="95" step="0.1" min="0" max="850">
+          </div>
+          <div class="wifi-field-group">
+            <label class="wifi-label" for="wifi-input-y">Y Coordinate</label>
+            <input type="number" id="wifi-input-y" class="wifi-input" value="250" step="0.1" min="0" max="540">
+          </div>
+        </div>
+
+        <div class="modal-actions">
+          <button class="btn-ghost" id="btn-cancel-wifi">Cancel</button>
+          <button class="btn-primary" id="btn-send-wifi-payload">Send Position Update</button>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /.app-shell -->
+
+  <!-- Standalone production bundle v2 (audited & debugged) -->
+  <script src="medinav.js"></script>
+</body>
+</html>
+
